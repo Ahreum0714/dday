@@ -388,9 +388,9 @@ function shareSection(it){
   const owner=!it||it.owner===me.id;
   if(!owner){
     const ids=[it.owner].concat(it.shares).filter(x=>x!==me.id);
-    return {selected:()=>null,el:h('div',{class:'field'},h('span',{text:'함께 보는 사람'}),
+    return {selected:()=>null,el:h('div',{class:'field'},h('span',{text:'공유'}),
       h('div',{},ids.map(id=>h('div',{class:'member'},personIcon(),h('span',{text:nameOf(id)+(id===it.owner?' · 만든 사람':'')})))),
-      h('p',{class:'hint',text:'함께 볼 사람은 이 디데이를 만든 사람만 바꿀 수 있어요.'}))};
+      h('p',{class:'hint',text:'공유 대상은 이 디데이를 만든 사람만 바꿀 수 있어요.'}))};
   }
   const current=new Set(it?it.shares:[]);
   const memberEmails=new Set(members.map(m=>m.email));
@@ -401,7 +401,7 @@ function shareSection(it){
     return {id,box,el:h('label',{class:'member',for:'share-'+id},h('span',{},personIcon(),nameOf(id)),box)};
   });
   return {selected:()=>boxes.filter(b=>b.box.checked).map(b=>b.id),
-    el:h('div',{class:'field'},h('span',{text:'함께 볼 사람'}),
+    el:h('div',{class:'field'},h('span',{text:'공유'}),
       boxes.length?h('div',{},boxes.map(b=>b.el)):null,
       h('p',{class:'hint',text:boxes.length?'아무도 고르지 않으면 나만 볼 수 있어요. 고른 사람은 날짜를 함께 고칠 수 있어요.':'아직 고를 수 있는 사람이 없어요. 초대한 사람이 한 번 로그인하면 여기에 나타나요.'}))};
 }
