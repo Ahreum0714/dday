@@ -218,6 +218,8 @@ label.member input{width:20px;height:20px;accent-color:var(--theme);flex:0 0 aut
 .pin-dot{width:24px;height:24px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .pin-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .15s,width .15s}
 .pin-dot.on::before{background:var(--fg);width:18px;border-radius:4px}
+.nav-ungrouped .label{color:var(--muted)}
+.nav-ungrouped[aria-current="page"] .label{color:var(--fg)}
 </style>
 </head>
 <body>

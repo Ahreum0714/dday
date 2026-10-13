@@ -247,6 +247,11 @@ function render(){
     listRows=rows.filter(r=>!pinnedSet.has(r)&&r.c.upcoming&&r.c.diff<=HOME_DAYS).sort((a,b)=>a.c.diff-b.c.diff);
     headText=HOME_DAYS+'일 안에 다가오는 디데이 · '+listRows.length+'개';
     emptyText=rows.length?HOME_DAYS+'일 안에 다가오는 디데이가 없어요.\n메뉴의 전체보기에서 모든 디데이를 볼 수 있어요.':null;
+  }else if(view==='none'){
+    $('viewTitle').textContent='그룹 미지정';
+    listRows=sortRows(rows.filter(r=>!groupOfItem(r.it.id)));
+    headText=(SORTS.find(x=>x.id===prefs.sort)||SORTS[0]).name+' · '+listRows.length+'개';
+    emptyText=rows.length?'그룹 미지정 디데이가 없어요.':null;
   }else if(view==='all'){
     $('viewTitle').textContent='전체보기';
     listRows=sortRows(rows.slice());
@@ -292,6 +297,8 @@ function renderDrawer(){
   const sub=h('div',{class:'nav-sub',id:'navGroups',hidden:!groupsOpen},
     (prefs.groups||[]).map(g=>nav('g:'+g.id,ICON('<circle cx="12" cy="12" r="2.2" fill="currentColor"/>',16),g.name,countIn(g.id))),
     (prefs.groups||[]).length?null:h('p',{class:'nav-muted',text:'아직 그룹이 없어요.',style:'margin:8px 12px'}),
+    (()=>{const n=items.filter(it=>!groupOfItem(it.id)).length;
+      return (n||view==='none')?h('button',{class:'nav-item nav-ungrouped','aria-current':view==='none'?'page':null,onclick:()=>setView('none')},svg(ICON('<circle cx="12" cy="12" r="4"/>',16)),h('span',{class:'label',text:'그룹 미지정'}),h('span',{class:'cnt',text:String(n)})):null;})(),
     addForm,
     (prefs.groups||[]).length?h('button',{class:'nav-item nav-manage',onclick:()=>{closeDrawer();openGroupManager();}},svg(GEAR_ICON),h('span',{class:'label',text:'그룹 관리'})):null);
 
