@@ -105,7 +105,7 @@ $$;
 -- ---------- 디데이 수정 시 자동 처리 ----------
 -- 공유받은 사람이 날짜를 고쳐도 만든 사람(owner)은 바뀌지 않게 고정
 create or replace function public.ddays_before_write() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   if tg_op = 'UPDATE' then
     new.owner      := old.owner;
@@ -174,6 +174,10 @@ create policy shares_delete on public.dday_shares for delete to authenticated
 drop policy if exists prefs_all on public.user_prefs;
 create policy prefs_all on public.user_prefs for all to authenticated
   using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- 로그인하지 않은 요청은 권한 확인 함수를 직접 부를 수 없게
+revoke execute on function public.is_member(), public.is_admin(), public.my_access(),
+  public.can_see_dday(uuid), public.owns_dday(uuid), public.is_member_user(uuid) from public, anon;
 
 -- ---------- 실시간 반영 ----------
 do $$
