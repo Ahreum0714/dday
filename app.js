@@ -95,6 +95,8 @@ const ALL_ICON=ICON('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r=
 const FOLDER_ICON=ICON('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
 const CHEV_ICON='<svg class="chev" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 const CLOSE_ICON=ICON('<path d="M6 6l12 12M18 6L6 18"/>',22);
+const GEAR_ICON=ICON('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',15);
+const LOGOUT_ICON=ICON('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',20);
 function personIcon(){return h('span',{class:'avatar'},svg('<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'));}
 function nameOf(id){
   if(me&&id===me.id) return '나';
@@ -246,7 +248,7 @@ function renderDrawer(){
     (prefs.groups||[]).map(g=>nav('g:'+g.id,ICON('<circle cx="12" cy="12" r="2.2" fill="currentColor"/>',16),g.name,countIn(g.id))),
     (prefs.groups||[]).length?null:h('p',{class:'nav-muted',text:'아직 그룹이 없어요.',style:'margin:8px 12px'}),
     addForm,
-    (prefs.groups||[]).length?h('button',{class:'nav-item nav-muted',onclick:()=>{closeDrawer();openGroupManager();},text:'그룹 이름 바꾸기·삭제'}):null);
+    (prefs.groups||[]).length?h('button',{class:'nav-item nav-manage',onclick:()=>{closeDrawer();openGroupManager();}},svg(GEAR_ICON),h('span',{class:'label',text:'그룹 관리'})):null);
 
   $('drawer').replaceChildren(
     h('div',{class:'drawer-head'},h('span',{text:'메뉴'}),h('button',{class:'icon-btn','aria-label':'메뉴 닫기',onclick:closeDrawer},svg(CLOSE_ICON))),
@@ -255,7 +257,7 @@ function renderDrawer(){
     toggle,sub,
     h('div',{class:'drawer-foot'},
       h('span',{class:'me',text:me?me.email:''}),
-      h('button',{class:'btn ghost',type:'button',text:'로그아웃',onclick:logout})));
+      h('button',{class:'logout',type:'button','aria-label':'로그아웃',title:'로그아웃',onclick:logout},svg(LOGOUT_ICON))));
 }
 function openDrawer(){renderDrawer();$('drawer').hidden=false;$('drawerScrim').hidden=false;$('menuBtn').setAttribute('aria-expanded','true');$('menuBtn').setAttribute('aria-label','메뉴 닫기');}
 function closeDrawer(){if($('drawer').hidden)return;$('drawer').hidden=true;$('drawerScrim').hidden=true;$('menuBtn').setAttribute('aria-expanded','false');$('menuBtn').setAttribute('aria-label','메뉴 열기');}
@@ -322,6 +324,9 @@ function openEdit(it){
   const v=it||{title:'',date:'',mode:'dday',repeat:false};
   const title=h('input',{class:'input',type:'text',id:'f-title',maxlength:'30',placeholder:'예: 제주 여행',value:v.title,autocomplete:'off'});
   const date=h('input',{class:'input',type:'date',id:'f-date',value:v.date});
+  const dateWrap=h('div',{class:'date-wrap'},date,h('span',{class:'date-ph','aria-hidden':'true',text:'YYYY-MM-DD'}));
+  const syncDate=()=>dateWrap.classList.toggle('is-empty',!date.value);
+  date.addEventListener('input',syncDate);date.addEventListener('change',syncDate);date.addEventListener('blur',syncDate);syncDate();
   const modeD=h('input',{type:'radio',name:'mode',id:'f-mode-d',value:'dday',checked:v.mode!=='count'});
   const modeC=h('input',{type:'radio',name:'mode',id:'f-mode-c',value:'count',checked:v.mode==='count'});
   const repeat=h('input',{type:'checkbox',id:'f-repeat',checked:!!v.repeat});
@@ -392,7 +397,7 @@ function openEdit(it){
     }catch(e2){fail();saveBtn.disabled=false;}
   }},
     h('label',{class:'field',for:'f-title'},h('span',{text:'이름'}),title),
-    h('label',{class:'field',for:'f-date'},h('span',{text:'날짜'}),date),
+    h('label',{class:'field',for:'f-date'},h('span',{text:'날짜'}),dateWrap),
     h('div',{class:'field',role:'radiogroup','aria-label':'날짜 세는 방법'},h('span',{text:'세는 방법'}),
       h('div',{class:'seg'},
         h('label',{for:'f-mode-d'},modeD,'D-day',h('small',{text:'당일이 D-DAY'})),

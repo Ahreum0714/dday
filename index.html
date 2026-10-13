@@ -144,8 +144,18 @@ label.member input{width:20px;height:20px;accent-color:var(--theme);flex:0 0 aut
 .gate .who{color:var(--fg);font-weight:500;overflow-wrap:anywhere}
 .gbtn{display:flex;align-items:center;justify-content:center;gap:10px;height:54px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-size:16px;font-weight:500}
 .gbtn svg{flex:0 0 auto}
-.drawer-foot{margin-top:auto;padding:16px 12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
-.drawer-foot .me{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.drawer-foot{margin-top:auto;padding:16px 4px 0 12px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+.drawer-foot .me{font-size:13px;color:var(--muted);overflow-wrap:anywhere;min-width:0}
+.logout{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:0;background:var(--soft);color:var(--fg);display:flex;align-items:center;justify-content:center}
+.logout:focus-visible{filter:brightness(.95)}
+.nav-manage{min-height:40px!important;font-size:13px!important;color:var(--muted)}
+.input::placeholder{color:var(--muted);opacity:1}
+.date-wrap{position:relative}
+.date-ph{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:16px;color:var(--muted);pointer-events:none}
+.date-wrap.is-empty .date-ph{display:flex}
+.date-wrap.is-empty .input{color:transparent}
+.date-wrap.is-empty .input::-webkit-datetime-edit{color:transparent}
+.date-wrap.is-empty .input::-webkit-calendar-picker-indicator{opacity:0}
 .invite{display:flex;gap:6px}
 .invite .input{flex:1}
 .invite button{flex:0 0 auto;height:48px;padding:0 16px;border:0;border-radius:12px;background:var(--theme);color:var(--on-theme);font-weight:500}
