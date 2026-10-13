@@ -188,6 +188,15 @@ label.member input{width:20px;height:20px;accent-color:var(--theme);flex:0 0 aut
 .custom .sub{padding-left:2px}
 .push-status{display:flex;flex-direction:column;gap:6px;margin-top:4px}
 .push-on{flex:0 0 auto;width:100%}
+
+.rem-inputs{display:grid;grid-template-columns:minmax(0,1fr) 128px;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--line);background:var(--surface);font-size:14px;color:var(--fg)}
+.chip.on{background:var(--theme);border-color:var(--theme);color:var(--on-theme)}
+.chip:disabled{opacity:.4;cursor:default}
+.rem-guide-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.rem-guide{margin:0;font-size:12px;color:var(--muted);line-height:1.5;min-width:0}
+.rem-clear{flex:0 0 auto;border:0;background:transparent;color:var(--muted);font-size:12px;text-decoration:underline;padding:4px 0}
 </style>
 </head>
 <body>

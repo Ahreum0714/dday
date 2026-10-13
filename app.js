@@ -405,32 +405,64 @@ async function refreshPushRegistration(){
   try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub) await registerSub(sub);}catch(e){}
 }
 
+function ampmText(hhmm){
+  const [hh,mm]=String(hhmm||'09:00').split(':').map(Number);
+  const h12=hh%12===0?12:hh%12;
+  return (hh<12?'오전 ':'오후 ')+pad(h12)+':'+pad(mm);
+}
+function dayStr(n){const t=new Date(n*DAY);return t.getUTCFullYear()+'-'+pad(t.getUTCMonth()+1)+'-'+pad(t.getUTCDate());}
 function reminderSection(it,getFields){
   const mine=it?myReminders.filter(r=>r.dday_id===it.id):[];
-  const presetTime=(mine.find(r=>r.kind!=='custom')||{}).remind_time||prefs.remindTime||'09:00';
-  const time=timeField('r-time',String(presetTime).slice(0,5),'알림 시각');
-  const kinds=KINDS.map(k=>{
-    const box=h('input',{type:'checkbox',id:'r-'+k.id,checked:mine.some(r=>r.kind===k.id)});
-    const sub=h('small',{class:'sub'});
-    return {k,box,sub,el:h('label',{class:'toggle rem',for:'r-'+k.id},h('span',{class:'rem-text'},h('span',{text:k.name}),sub),box)};
-  });
-  const customs=[];
-  const customList=h('div',{class:'customs'});
-  let cid=0;
-  function addCustom(at){
-    const i=cid++;
-    let dStr='',tStr='09:00';
-    if(at){const t=new Date(new Date(at).getTime()+9*3600000);dStr=t.getUTCFullYear()+'-'+pad(t.getUTCMonth()+1)+'-'+pad(t.getUTCDate());tStr=pad(t.getUTCHours())+':'+pad(t.getUTCMinutes());}
-    const df=dateField('r-c-d-'+i,dStr,'알림 날짜');
-    const tf=timeField('r-c-t-'+i,tStr,'알림 시각');
-    const sub=h('small',{class:'sub'});
-    const row={df,tf,sub};
-    const rm=h('button',{class:'icon-btn rm-custom',type:'button','aria-label':'이 알림 빼기',onclick:()=>{customs.splice(customs.indexOf(row),1);row.el.remove();}},svg(ICON('<path d="M6 6l12 12M18 6L6 18"/>',18)));
-    row.el=h('div',{class:'custom'},h('div',{class:'custom-inputs'},df.wrap,tf,rm),sub);
-    [df.input,tf].forEach(x=>{x.addEventListener('change',refresh);x.addEventListener('input',refresh);});
-    customs.push(row);customList.append(row.el);refresh();
+  const cur=mine[0]||null;
+  let initDate='',initTime=prefs.remindTime||'09:00';
+  if(cur&&cur.kind==='custom'&&cur.custom_at){
+    const t=new Date(new Date(cur.custom_at).getTime()+9*3600000);
+    initDate=t.getUTCFullYear()+'-'+pad(t.getUTCMonth()+1)+'-'+pad(t.getUTCDate());initTime=pad(t.getUTCHours())+':'+pad(t.getUTCMinutes());
+  }else if(cur&&cur.next_at){
+    initDate=dayStr(kstDayOf(Date.parse(cur.next_at)));initTime=String(cur.remind_time||initTime).slice(0,5);
   }
-  mine.filter(r=>r.kind==='custom').forEach(r=>addCustom(r.custom_at));
+  const df=dateField('r-date',initDate,'알림 날짜');
+  const time=timeField('r-time',initTime,'알림 시각');
+  const chipsBox=h('div',{class:'chips',role:'group','aria-label':'알림 날짜 빠르게 고르기'});
+  const guide=h('p',{class:'rem-guide','aria-live':'polite'});
+  const clear=h('button',{class:'rem-clear',type:'button',text:'알림 지우기',onclick:()=>{df.input.value='';df.input.dispatchEvent(new Event('change'));refresh();}});
+
+  // 세는 방법에 따라 버튼이 바뀜
+  function chipDefs(f){
+    const [y,m,d]=String(f.date||'').split('-').map(Number);
+    if(!y) return [];
+    const base=num(y,m,d),T=todayNum();
+    if(f.mode==='count') return [{id:'c100',name:'+100',day:base+99},{id:'c1000',name:'+1000',day:base+999}];
+    const c=compute(f,T);
+    const target=c&&c.upcoming?c.target:base;
+    return KINDS.map(k=>({id:k.id,name:k.name,day:target-k.off}));
+  }
+  let chips=[];
+  function drawChips(){
+    const f=getFields();chips=chipDefs(f);
+    const T=todayNum();
+    chipsBox.replaceChildren(...chips.map(c=>{
+      const past=c.day<T;
+      const on=df.input.value===dayStr(c.day);
+      return h('button',{class:'chip'+(on?' on':''),type:'button','aria-pressed':String(on),disabled:past,
+        onclick:()=>{df.input.value=dayStr(c.day);df.input.dispatchEvent(new Event('change'));refresh();}},c.name);
+    }));
+    chipsBox.hidden=!chips.length;
+  }
+  function refresh(){
+    drawChips();
+    const f=getFields();
+    clear.hidden=!df.input.value;
+    if(!f.date){guide.textContent='디데이 날짜를 먼저 골라 주세요';return;}
+    const ms=customMs(df.input.value,time.value);
+    if(!ms){guide.textContent='알림 날짜를 고르거나 위 버튼을 눌러 주세요';return;}
+    const c=compute({date:f.date,mode:f.mode,repeat:f.repeat},kstDayOf(ms));
+    const lab=c?(f.mode==='count'&&c.count?'D'+c.label:c.label):'';
+    const p=parts(kstDayOf(ms));
+    const when=p.m+'월 '+p.d+'일 ('+WD[p.w]+') '+ampmText(time.value);
+    guide.textContent=(lab?'('+lab+') ':'')+when+(ms>Date.now()?'에 울려요':' · 지난 시각이라 울리지 않아요');
+  }
+  [df.input,time].forEach(x=>{x.addEventListener('change',refresh);x.addEventListener('input',refresh);});
 
   const status=h('div',{class:'push-status'});
   async function drawStatus(){
@@ -450,36 +482,22 @@ function reminderSection(it,getFields){
   }
   drawStatus();
 
-  function refresh(){
-    const f=getFields(),now=Date.now();
-    for(const x of kinds){
-      if(!f.date){x.sub.textContent='날짜를 고르면 알림 날짜가 보여요';continue;}
-      const ms=nextFire(f,x.k.off,time.value,now);
-      x.sub.textContent=ms?fmtWhen(ms)+'에 울려요':'지난 날짜라 울리지 않아요';
-    }
-    for(const c of customs){
-      const ms=customMs(c.df.input.value,c.tf.value);
-      if(!ms){c.sub.textContent='날짜와 시각을 골라 주세요';continue;}
-      if(ms<=now){c.sub.textContent='지난 시각이라 울리지 않아요';continue;}
-      if(!f.date){c.sub.textContent='';continue;}
-      const r=compute({date:f.date,mode:f.mode,repeat:f.repeat},kstDayOf(ms));
-      c.sub.textContent=r?'그날 기준 '+r.label:'';
-    }
-  }
-  time.addEventListener('change',refresh);time.addEventListener('input',refresh);
-  kinds.forEach(x=>x.box.addEventListener('change',refresh));
-
   const el=h('div',{class:'field rem-section'},h('span',{text:'알림 (나에게만)'}),
-    h('label',{class:'rem-time',for:'r-time'},h('span',{text:'알림 시각'}),time),
-    h('div',{},kinds.map(x=>x.el)),
-    h('div',{class:'custom-head'},h('span',{text:'직접 입력'}),h('button',{class:'add-custom',type:'button',onclick:()=>addCustom(null)},svg(ICON('<path d="M12 5v14M5 12h14"/>',16)),'추가')),
-    customList,status);
+    h('div',{class:'rem-inputs'},df.wrap,time),
+    chipsBox,
+    h('div',{class:'rem-guide-row'},guide,clear),
+    status);
 
   function desired(){
-    const out=[];
-    for(const x of kinds) if(x.box.checked) out.push({kind:x.k.id,remind_time:time.value||'09:00'});
-    for(const c of customs){const ms=customMs(c.df.input.value,c.tf.value);if(ms) out.push({kind:'custom',custom_at:new Date(ms).toISOString()});}
-    return out;
+    const ms=customMs(df.input.value,time.value);
+    if(!ms) return [];
+    const f=getFields();
+    // D-day 방식에서 당일·하루 전·일주일 전을 고르면 매년 반복 디데이도 해마다 울리게 종류로 저장
+    if(f.mode==='dday'){
+      const hit=chips.find(c=>KINDS.some(k=>k.id===c.id)&&df.input.value===dayStr(c.day));
+      if(hit) return [{kind:hit.id,remind_time:time.value||'09:00'}];
+    }
+    return [{kind:'custom',custom_at:new Date(ms).toISOString()}];
   }
   return {el,refresh,desired,time:()=>time.value};
 }
