@@ -242,7 +242,7 @@ function renderDrawer(){
   const addForm=h('form',{class:'nav-add',onsubmit:e=>{
     e.preventDefault();const name=addInput.value.trim();if(!name)return;
     prefs.groups=(prefs.groups||[]).concat([{id:newId(),name}]);savePrefs();addInput.value='';renderDrawer();toast('그룹을 만들었어요.');
-  }},addInput,h('button',{type:'submit',text:'추가'}));
+  }},addInput,h('button',{type:'submit','aria-label':'그룹 추가',title:'그룹 추가'},svg('<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>')));
 
   const sub=h('div',{class:'nav-sub',id:'navGroups',hidden:!groupsOpen},
     (prefs.groups||[]).map(g=>nav('g:'+g.id,ICON('<circle cx="12" cy="12" r="2.2" fill="currentColor"/>',16),g.name,countIn(g.id))),

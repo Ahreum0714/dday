@@ -122,6 +122,9 @@ h1{overflow-wrap:anywhere}
 .nav-add .input{flex:0 1 195px;width:195px;min-width:0;height:40px;min-height:40px;line-height:38px;font-size:14px}
 .nav-add button{flex:0 0 40px;width:40px;height:40px;padding:0;border:0;border-radius:10px;background:var(--theme);color:var(--on-theme);font-size:14px}
 .input[type=date]{cursor:pointer}
+.date-wrap.is-empty .input::-webkit-datetime-edit{visibility:hidden}
+.input[type=date]::-webkit-datetime-edit-year-field:focus,.input[type=date]::-webkit-datetime-edit-month-field:focus,.input[type=date]::-webkit-datetime-edit-day-field:focus{background:transparent;color:inherit}
+.nav-add button{display:flex;align-items:center;justify-content:center}
 .input[type=date]::-webkit-calendar-picker-indicator{display:none}
 .input[type=date]::-webkit-inner-spin-button,.input[type=date]::-webkit-clear-button{display:none}
 .nav-muted{color:var(--muted);font-size:14px}

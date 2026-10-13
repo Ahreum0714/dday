@@ -1,6 +1,6 @@
 // 앱 화면 파일만 저장해 두는 서비스 워커. 디데이 데이터(Supabase)는 저장하지 않아요.
 // 앱 파일을 고친 뒤 올릴 때는 아래 버전 숫자를 하나 올려 주세요.
-const VERSION = 'dday-v3';
+const VERSION = 'dday-v4';
 const SHELL = ['./', 'index.html', 'app.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
