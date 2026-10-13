@@ -151,3 +151,10 @@ create policy push_delete on public.push_subscriptions for delete to authenticat
 revoke execute on function public.claim_due_reminders() from public, anon, authenticated;
 revoke execute on function public.register_push(text, text, text) from public, anon;
 grant execute on function public.register_push(text, text, text) to authenticated;
+
+-- 트리거 함수는 직접 부를 수 없게
+revoke execute on function public.reminders_before_write(), public.ddays_after_update_reminders(),
+  public.shares_after_delete_reminders(), public.ddays_before_write() from public, anon, authenticated;
+
+-- 알림 발송 설정(키 보관, 매분 예약 작업)은 비밀키가 들어 있어 저장소에 올리지 않았어요.
+-- Supabase의 Vault에 dday_vapid_public / dday_vapid_private 이름으로 보관돼 있어요.
