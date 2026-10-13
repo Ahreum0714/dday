@@ -860,9 +860,9 @@ if('serviceWorker' in navigator){
     }).catch(()=>{});
   });
   // 새 버전이 설치되면 한 번 새로고침해서 바로 적용 (입력 중인 창이 열려 있으면 닫힐 때까지 기다림)
-  let reloaded=false;
+  let reloaded=false;const hadController=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(reloaded) return;
+    if(reloaded||!hadController) return;
     const go=()=>{if(reloaded)return;reloaded=true;location.reload();};
     if($('scrim').hidden) go();
     else{const t=setInterval(()=>{if($('scrim').hidden){clearInterval(t);go();}},1000);}
