@@ -119,8 +119,11 @@ h1{overflow-wrap:anywhere}
 .nav-tree-toggle .chev{transition:transform .15s}
 .nav-tree-toggle[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .nav-add{display:flex;gap:6px;padding:4px 0}
-.nav-add .input{height:40px;min-height:40px;line-height:38px;font-size:15px}
-.nav-add button{flex:0 0 auto;height:40px;padding:0 14px;border:0;border-radius:10px;background:var(--theme);color:var(--on-theme)}
+.nav-add .input{flex:0 1 195px;width:195px;min-width:0;height:40px;min-height:40px;line-height:38px;font-size:14px}
+.nav-add button{flex:0 0 40px;width:40px;height:40px;padding:0;border:0;border-radius:10px;background:var(--theme);color:var(--on-theme);font-size:14px}
+.input[type=date]{cursor:pointer}
+.input[type=date]::-webkit-calendar-picker-indicator{display:none}
+.input[type=date]::-webkit-inner-spin-button,.input[type=date]::-webkit-clear-button{display:none}
 .nav-muted{color:var(--muted);font-size:14px}
 .group-row{display:flex;gap:8px;align-items:center}
 .group-row .input{flex:1}

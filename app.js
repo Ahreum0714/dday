@@ -327,6 +327,11 @@ function openEdit(it){
   const dateWrap=h('div',{class:'date-wrap'},date,h('span',{class:'date-ph','aria-hidden':'true',text:'YYYY-MM-DD'}));
   const syncDate=()=>dateWrap.classList.toggle('is-empty',!date.value);
   date.addEventListener('input',syncDate);date.addEventListener('change',syncDate);date.addEventListener('blur',syncDate);syncDate();
+  // PC(마우스)에서는 칸 어디를 눌러도 달력이 열리게. 폰은 원래 칸 전체가 달력을 열어요.
+  if(typeof date.showPicker==='function'&&window.matchMedia&&matchMedia('(pointer: fine)').matches){
+    date.addEventListener('mousedown',e=>{e.preventDefault();date.focus({preventScroll:true});try{date.showPicker();}catch(x){}});
+    date.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();try{date.showPicker();}catch(x){}}});
+  }
   const modeD=h('input',{type:'radio',name:'mode',id:'f-mode-d',value:'dday',checked:v.mode!=='count'});
   const modeC=h('input',{type:'radio',name:'mode',id:'f-mode-c',value:'count',checked:v.mode==='count'});
   const repeat=h('input',{type:'checkbox',id:'f-repeat',checked:!!v.repeat});
