@@ -68,7 +68,7 @@ function savePrefs(){
     await sb.from('user_prefs').upsert({user_id:me.id,prefs:p,updated_at:new Date().toISOString()});
   },400);
 }
-const MAX_PINS=3;
+const MAX_PINS=5;
 let pinSlide=0;
 function pinList(){
   let a=Array.isArray(prefs.pins)?prefs.pins.slice():[];
@@ -618,7 +618,7 @@ function openEdit(it){
   const pin=h('input',{type:'checkbox',id:'f-pin',checked:isNew?livePins.length===0:isPinned(it.id)});
   const pinNote=h('small',{class:'sub',text:''});
   const pinFull=()=>!pin.checked&&livePins.filter(id=>!it||id!==it.id).length>=MAX_PINS;
-  const syncPin=()=>{const n=livePins.filter(id=>!it||id!==it.id).length+(pin.checked?1:0);pinNote.textContent=pinFull()?'고정은 3개까지예요. 다른 고정을 먼저 풀어 주세요':'고정 '+n+' / '+MAX_PINS;pin.disabled=pinFull();};
+  const syncPin=()=>{const n=livePins.filter(id=>!it||id!==it.id).length+(pin.checked?1:0);pinNote.textContent=pinFull()?'고정은 '+MAX_PINS+'개까지예요. 다른 고정을 먼저 풀어 주세요':'고정 '+n+' / '+MAX_PINS;pin.disabled=pinFull();};
   pin.addEventListener('change',syncPin);syncPin();
   const view=currentView();
   const curGroup=isNew?(view.startsWith('g:')?view.slice(2):''):(groupOfItem(it.id)||'');
