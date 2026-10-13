@@ -69,7 +69,7 @@ ul.list{list-style:none;margin:-8px 0 0;padding:0}
 .fab:disabled{opacity:.4;cursor:default}
 
 .scrim{position:fixed;inset:0;background:rgba(0,0,0,.36);display:flex;align-items:flex-end;justify-content:center;z-index:10}
-.sheet{background:var(--surface);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px;max-height:88%;overflow:auto}
+.sheet{background:var(--surface);width:100%;max-width:480px;border-radius:22px 22px 0 0;padding:0 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:18px;max-height:88%;overflow:auto}
 .sheet h2{margin:0;font-size:18px;font-weight:600}
 .field{display:flex;flex-direction:column;gap:8px}
 .field > span{font-size:13px;color:var(--muted)}
@@ -86,7 +86,7 @@ ul.list{list-style:none;margin:-8px 0 0;padding:0}
 .seg label small{font-size:11px;color:var(--muted);margin-top:2px}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label:has(input:checked){background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:500}
-.toggle{display:flex;align-items:center;justify-content:space-between;min-height:48px;border-bottom:1px solid var(--line);cursor:pointer}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:12px 0;box-sizing:border-box;border-bottom:1px solid var(--line);cursor:pointer}
 .toggle input{width:20px;height:20px;accent-color:var(--theme)}
 .actions{display:flex;gap:8px}
 .btn{flex:1;height:50px;border-radius:14px;border:0;font-weight:500;font-size:15px}
@@ -220,6 +220,10 @@ label.member input{width:20px;height:20px;accent-color:var(--theme);flex:0 0 aut
 .pin-dot.on::before{background:var(--fg);width:18px;border-radius:4px}
 .nav-ungrouped .label{color:var(--muted)}
 .nav-ungrouped[aria-current="page"] .label{color:var(--fg)}
+.sheet-top{position:sticky;top:0;z-index:1;background:var(--surface);display:flex;flex-direction:column;gap:12px;padding:10px 0 4px;margin-bottom:-6px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.sheet-top:active{cursor:grabbing}
+.grip{width:40px;height:5px;border-radius:3px;background:var(--line);align-self:center}
+.sheet h2{padding-top:4px}
 </style>
 </head>
 <body>

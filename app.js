@@ -342,10 +342,45 @@ function openGroupManager(){
 
 /* ---------- sheets ---------- */
 function openSheet(title,...content){
-  $('sheet').replaceChildren(h('h2',{id:'sheetTitle',text:title}),...content);
+  const sheet=$('sheet');
+  sheet.style.transition='';sheet.style.transform='';
+  const top=h('div',{class:'sheet-top'},h('div',{class:'grip','aria-hidden':'true'}),h('h2',{id:'sheetTitle',text:title}));
+  sheet.replaceChildren(top,...content);
+  sheet.scrollTop=0;
+  dragToClose(top,sheet);
   $('scrim').hidden=false;
 }
-function closeSheet(){$('scrim').hidden=true;}
+function closeSheet(){
+  $('scrim').hidden=true;
+  const sheet=$('sheet');sheet.style.transition='';sheet.style.transform='';
+}
+// 창 맨 위(손잡이·제목)를 잡고 아래로 내리면 닫기
+function dragToClose(handle,sheet){
+  let y0=null,dy=0,t0=0,id=null;
+  handle.addEventListener('pointerdown',e=>{
+    if(e.button!==undefined&&e.button!==0) return;
+    y0=e.clientY;dy=0;t0=Date.now();id=e.pointerId;
+    try{handle.setPointerCapture(id);}catch(x){}
+    sheet.style.transition='none';
+  });
+  handle.addEventListener('pointermove',e=>{
+    if(y0==null||e.pointerId!==id) return;
+    dy=Math.max(0,e.clientY-y0);
+    sheet.style.transform='translateY('+dy+'px)';
+  });
+  const end=e=>{
+    if(y0==null||(e&&e.pointerId!==id)) return;
+    const speed=dy/Math.max(1,Date.now()-t0);
+    y0=null;
+    sheet.style.transition='transform .2s ease-out';
+    if(dy>110||(dy>30&&speed>0.6)){
+      sheet.style.transform='translateY(100%)';
+      setTimeout(closeSheet,190);
+    }else sheet.style.transform='';
+  };
+  handle.addEventListener('pointerup',end);
+  handle.addEventListener('pointercancel',end);
+}
 $('scrim').addEventListener('click',e=>{if(e.target===$('scrim'))closeSheet();});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!$('scrim').hidden)closeSheet();else closeDrawer();});
 
