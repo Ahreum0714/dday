@@ -64,7 +64,7 @@ function savePrefs(){
   if(!sb||!me) return;
   clearTimeout(prefsTimer);
   prefsTimer=setTimeout(async()=>{
-    const p={theme:prefs.theme,sort:prefs.sort,pinned:prefs.pinned||null,groups:prefs.groups||[],groupOf:prefs.groupOf||{},view:prefs.view||'home',remindTime:prefs.remindTime||'09:00'};
+    const p={theme:prefs.theme,listBars:!!prefs.listBars,sort:prefs.sort,pinned:prefs.pinned||null,groups:prefs.groups||[],groupOf:prefs.groupOf||{},view:prefs.view||'home',remindTime:prefs.remindTime||'09:00'};
     await sb.from('user_prefs').upsert({user_id:me.id,prefs:p,updated_at:new Date().toISOString()});
   },400);
 }
@@ -179,7 +179,7 @@ function progressOf(it,c,T){
   return span>0?Math.max(0,Math.min(1,(T-start)/span)):0;
 }
 function rowEl({it,c},showPin){
-  const r=progressOf(it,c,todayNum());
+  const r=prefs.listBars?progressOf(it,c,todayNum()):null;
   return h('li',{class:(!c.upcoming&&!c.count)?'past':''},
     h('button',{class:'row',onclick:()=>openEdit(it)},
       h('div',{class:'info'},
@@ -445,7 +445,13 @@ function reminderSection(it,getFields){
     const [y,m,d]=String(f.date||'').split('-').map(Number);
     if(!y) return [];
     const base=num(y,m,d),T=todayNum();
-    if(f.mode==='count') return [{id:'c100',name:'+100',day:base+99},{id:'c1000',name:'+1000',day:base+999}];
+    if(f.mode==='count'){
+      // 이미 지난 단위면 다음 단위로 (+100 → +200 …, +1000 → +2000 …)
+      const n=Math.max(1,T-base+1);
+      const next=step=>{let k=Math.ceil(n/step)*step;if(k<=n&&base+k-1<=T)k+=step;if(base+k-1<T)k+=step;return k;};
+      const k100=next(100),k1000=next(1000);
+      return [{id:'c100',name:'+'+k100,day:base+k100-1},{id:'c1000',name:'+'+k1000,day:base+k1000-1}];
+    }
     const c=compute(f,T);
     const target=c&&c.upcoming?c.target:base;
     return KINDS.map(k=>({id:k.id,name:k.name,day:target-k.off}));
@@ -635,7 +641,11 @@ $('themeBtn').addEventListener('click',()=>{
   const draw=()=>grid.replaceChildren(...THEMES.map(t=>h('button',{class:'swatch',role:'radio','aria-checked':String(prefs.theme===t.id),onclick:()=>{prefs.theme=t.id;applyTheme();savePrefs();draw();}},
     h('i',{style:'background:'+t.l}),h('span',{text:t.name}))));
   draw();
-  openSheet('테마 색상',grid,h('p',{class:'hint',text:'테마 색상은 나에게만 적용되고, 함께 쓰는 사람의 화면은 바뀌지 않아요.'}),
+  const bars=h('input',{type:'checkbox',role:'switch',id:'t-bars',class:'switch',checked:!!prefs.listBars});
+  bars.addEventListener('change',()=>{prefs.listBars=bars.checked;savePrefs();render();});
+  openSheet('테마 색상',grid,
+    h('label',{class:'toggle',for:'t-bars'},h('span',{class:'rem-text'},h('span',{text:'진행 막대'}),h('small',{class:'sub',text:'켜면 목록의 모든 디데이에 진행 막대가 보여요'})),bars),
+    h('p',{class:'hint',text:'테마 색상과 진행 막대는 나에게만 적용되고, 함께 쓰는 사람의 화면은 바뀌지 않아요.'}),
     h('div',{class:'actions'},h('button',{class:'btn ghost',type:'button',text:'닫기',onclick:closeSheet})));
 });
 
