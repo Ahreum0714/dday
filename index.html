@@ -211,6 +211,13 @@ label.member input{width:20px;height:20px;accent-color:var(--theme);flex:0 0 aut
 .row .info{flex:1 1 0}
 .row-bar{flex:0 0 100%;height:3px;border-radius:2px;background:var(--soft)}
 .row-bar i{display:block;height:100%;border-radius:2px;background:var(--theme)}
+.pin-track{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;border-radius:20px}
+.pin-track::-webkit-scrollbar{display:none}
+.pin-track .pinned{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always}
+.pin-dots{display:flex;justify-content:center;gap:4px;margin-top:6px}
+.pin-dot{width:24px;height:24px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.pin-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--line);transition:background .15s,width .15s}
+.pin-dot.on::before{background:var(--fg);width:18px;border-radius:4px}
 </style>
 </head>
 <body>

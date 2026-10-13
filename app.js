@@ -17,7 +17,7 @@ const $=id=>document.getElementById(id);
 let sb=null,me=null,access=null;          // me = {id,email,name}
 let items=[],profiles={},members=[],myReminders=[];
 let loaded=false;
-let prefs={theme:'ink',sort:'near',pinned:null,groups:[],groupOf:{},view:'home'};
+let prefs={theme:'ink',sort:'near',pins:[],groups:[],groupOf:{},view:'home'};
 let groupsOpen=true;
 try{const c=JSON.parse(localStorage.getItem('dday-prefs')||'null');if(c)prefs=Object.assign(prefs,c);}catch(e){}
 try{groupsOpen=localStorage.getItem('dday-groups-open')!=='0';}catch(e){}
@@ -64,9 +64,22 @@ function savePrefs(){
   if(!sb||!me) return;
   clearTimeout(prefsTimer);
   prefsTimer=setTimeout(async()=>{
-    const p={theme:prefs.theme,listBars:!!prefs.listBars,sort:prefs.sort,pinned:prefs.pinned||null,groups:prefs.groups||[],groupOf:prefs.groupOf||{},view:prefs.view||'home',remindTime:prefs.remindTime||'09:00'};
+    const p={theme:prefs.theme,listBars:!!prefs.listBars,sort:prefs.sort,pins:pinList(),groups:prefs.groups||[],groupOf:prefs.groupOf||{},view:prefs.view||'home',remindTime:prefs.remindTime||'09:00'};
     await sb.from('user_prefs').upsert({user_id:me.id,prefs:p,updated_at:new Date().toISOString()});
   },400);
+}
+const MAX_PINS=3;
+let pinSlide=0;
+function pinList(){
+  let a=Array.isArray(prefs.pins)?prefs.pins.slice():[];
+  if(!a.length&&prefs.pinned) a=[prefs.pinned];   // 예전 1개 고정 설정 옮기기
+  return a.filter((x,i)=>x&&a.indexOf(x)===i).slice(0,MAX_PINS);
+}
+function isPinned(id){return pinList().includes(id);}
+function setPinned(id,on){
+  let a=pinList().filter(x=>x!==id);
+  if(on) a.push(id);
+  prefs.pins=a.slice(0,MAX_PINS);delete prefs.pinned;
 }
 function groupById(id){return (prefs.groups||[]).find(g=>g.id===id)||null;}
 function groupOfItem(id){const g=(prefs.groupOf||{})[id];return g&&groupById(g)?g:null;}
@@ -184,7 +197,7 @@ function rowEl({it,c},showPin){
     h('button',{class:'row',onclick:()=>openEdit(it)},
       h('div',{class:'info'},
         h('div',{class:'t',text:it.title}),
-        h('div',{class:'m'},showPin&&it.id===prefs.pinned?svg(PIN_ICON):null,(c.count?'시작 ':'')+fmt(c.target),it.repeat&&!c.count?svg(REPEAT_ICON):null,hasAlarm(it.id)?svg(BELL_ICON):null,sharedTag(it))),
+        h('div',{class:'m'},showPin&&isPinned(it.id)?svg(PIN_ICON):null,(c.count?'시작 ':'')+fmt(c.target),it.repeat&&!c.count?svg(REPEAT_ICON):null,hasAlarm(it.id)?svg(BELL_ICON):null,sharedTag(it))),
       h('span',{class:'v num',text:c.label}),
       r!=null?h('div',{class:'row-bar','aria-hidden':'true'},h('i',{style:'width:'+(r*100).toFixed(1)+'%'})):null));
 }
@@ -200,21 +213,38 @@ function render(){
 
   if(view==='home'){
     $('viewTitle').textContent='홈';
-    const pinned=rows.find(r=>r.it.id===prefs.pinned);
-    if(pinned){
-      const {it,c}=pinned;
-      let bar=null;
-      if(!c.count&&c.diff>0){
-        const start=c.prev!=null?c.prev:Math.min(localDayNum(it.createdAt||Date.now()),T);
-        const span=c.target-start;
-        if(span>0){const r=Math.max(0,Math.min(1,(T-start)/span));bar=h('div',{class:'bar'},h('i',{style:'width:'+(r*100).toFixed(1)+'%'}));}
+    const pinnedRows=pinList().map(id=>rows.find(r=>r.it.id===id)).filter(Boolean);
+    if(pinnedRows.length){
+      const cards=pinnedRows.map(({it,c},i)=>{
+        let bar=null;
+        if(!c.count&&c.diff>0){
+          const start=c.prev!=null?c.prev:Math.min(localDayNum(it.createdAt||Date.now()),T);
+          const span=c.target-start;
+          if(span>0){const r=Math.max(0,Math.min(1,(T-start)/span));bar=h('div',{class:'bar'},h('i',{style:'width:'+(r*100).toFixed(1)+'%'}));}
+        }
+        return h('button',{class:'pinned','aria-label':(pinnedRows.length>1?(i+1)+'번째 고정, ':'')+it.title+' '+c.label+', 수정하기',onclick:()=>openEdit(it)},
+          h('div',{class:'top'},h('span',{},svg(PIN_ICON),'고정됨',sharedTag(it)),h('span',{},it.repeat&&!c.count?svg(REPEAT_ICON):null,(c.count?'시작 ':'')+fmt(c.target))),
+          h('div',{},h('div',{class:'name',text:it.title}),h('div',{class:'big num',text:c.label})),
+          bar);
+      });
+      const track=h('div',{class:'pin-track'},cards);
+      slot.append(track);
+      if(cards.length>1){
+        const dots=h('div',{class:'pin-dots',role:'tablist','aria-label':'고정한 디데이'},cards.map((_,i)=>h('button',{class:'pin-dot',type:'button',role:'tab','aria-label':(i+1)+'번째 고정 디데이',onclick:()=>track.scrollTo({left:i*track.clientWidth,behavior:'smooth'})})));
+        slot.append(dots);
+        const mark=()=>{
+          const i=Math.round(track.scrollLeft/Math.max(1,track.clientWidth));
+          pinSlide=Math.max(0,Math.min(cards.length-1,i));
+          dots.querySelectorAll('.pin-dot').forEach((d,k)=>{d.classList.toggle('on',k===pinSlide);d.setAttribute('aria-selected',String(k===pinSlide));});
+        };
+        track.addEventListener('scroll',()=>{cancelAnimationFrame(track._raf);track._raf=requestAnimationFrame(mark);},{passive:true});
+        const keep=Math.min(pinSlide,cards.length-1);
+        requestAnimationFrame(()=>{track.scrollLeft=keep*track.clientWidth;mark();});
+        mark();
       }
-      slot.append(h('button',{class:'pinned','aria-label':it.title+' '+c.label+', 수정하기',onclick:()=>openEdit(it)},
-        h('div',{class:'top'},h('span',{},svg(PIN_ICON),'고정됨',sharedTag(it)),h('span',{},it.repeat&&!c.count?svg(REPEAT_ICON):null,(c.count?'시작 ':'')+fmt(c.target))),
-        h('div',{},h('div',{class:'name',text:it.title}),h('div',{class:'big num',text:c.label})),
-        bar));
     }
-    listRows=rows.filter(r=>r!==pinned&&r.c.upcoming&&r.c.diff<=HOME_DAYS).sort((a,b)=>a.c.diff-b.c.diff);
+    const pinnedSet=new Set(pinnedRows);
+    listRows=rows.filter(r=>!pinnedSet.has(r)&&r.c.upcoming&&r.c.diff<=HOME_DAYS).sort((a,b)=>a.c.diff-b.c.diff);
     headText=HOME_DAYS+'일 안에 다가오는 디데이 · '+listRows.length+'개';
     emptyText=rows.length?HOME_DAYS+'일 안에 다가오는 디데이가 없어요.\n메뉴의 전체보기에서 모든 디데이를 볼 수 있어요.':null;
   }else if(view==='all'){
@@ -541,7 +571,12 @@ function openEdit(it){
   const modeD=h('input',{type:'radio',name:'mode',id:'f-mode-d',value:'dday',checked:v.mode!=='count'});
   const modeC=h('input',{type:'radio',name:'mode',id:'f-mode-c',value:'count',checked:v.mode==='count'});
   const repeat=h('input',{type:'checkbox',id:'f-repeat',checked:!!v.repeat});
-  const pin=h('input',{type:'checkbox',id:'f-pin',checked:isNew?!items.some(x=>x.id===prefs.pinned):prefs.pinned===it.id});
+  const livePins=pinList().filter(id=>items.some(x=>x.id===id));
+  const pin=h('input',{type:'checkbox',id:'f-pin',checked:isNew?livePins.length===0:isPinned(it.id)});
+  const pinNote=h('small',{class:'sub',text:''});
+  const pinFull=()=>!pin.checked&&livePins.filter(id=>!it||id!==it.id).length>=MAX_PINS;
+  const syncPin=()=>{const n=livePins.filter(id=>!it||id!==it.id).length+(pin.checked?1:0);pinNote.textContent=pinFull()?'고정은 3개까지예요. 다른 고정을 먼저 풀어 주세요':'고정 '+n+' / '+MAX_PINS;pin.disabled=pinFull();};
+  pin.addEventListener('change',syncPin);syncPin();
   const view=currentView();
   const curGroup=isNew?(view.startsWith('g:')?view.slice(2):''):(groupOfItem(it.id)||'');
   const group=h('select',{class:'input',id:'f-group'},
@@ -567,7 +602,7 @@ function openEdit(it){
       try{
         if(owner) await must(sb.from('ddays').delete().eq('id',it.id));
         else await must(sb.from('dday_shares').delete().eq('dday_id',it.id).eq('user_id',me.id));
-        if(prefs.pinned===it.id) prefs.pinned=null;
+        setPinned(it.id,false);
         if(prefs.groupOf) delete prefs.groupOf[it.id];
         savePrefs();
         items=items.filter(x=>x.id!==it.id);
@@ -605,7 +640,7 @@ function openEdit(it){
       }
       await saveReminders(id,rem.desired());
       prefs.remindTime=rem.time()||prefs.remindTime;
-      if(pin.checked) prefs.pinned=id; else if(prefs.pinned===id) prefs.pinned=null;
+      if(pin.checked!==isPinned(id)) setPinned(id,pin.checked);
       prefs.groupOf=prefs.groupOf||{};
       if(group.value) prefs.groupOf[id]=group.value; else delete prefs.groupOf[id];
       savePrefs();
@@ -620,7 +655,7 @@ function openEdit(it){
         h('label',{for:'f-mode-d'},modeD,'D-day',h('small',{text:'당일이 D-DAY'})),
         h('label',{for:'f-mode-c'},modeC,'+1일부터',h('small',{text:'시작일이 1일째'})))),
     h('label',{class:'field',for:'f-group'},h('span',{text:'그룹 (나에게만)'}),group),
-    h('div',{},repeatRow,h('label',{class:'toggle',for:'f-pin'},h('span',{text:'홈에 고정 (나에게만)'}),pin)),
+    h('div',{},repeatRow,h('label',{class:'toggle',for:'f-pin'},h('span',{class:'rem-text'},h('span',{text:'홈에 고정 (나에게만)'}),pinNote),pin)),
     rem.el,
     share.el,
     err,by,
