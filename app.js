@@ -169,13 +169,24 @@ function sortRows(rows){
     return ka===0?a.c.diff-b.c.diff:b.c.target-a.c.target;
   });
 }
+// 진행 막대 비율: D-day는 등록일(반복이면 지난번 그날)부터 당일까지, +1일부터는 다음 100일 단위까지
+function progressOf(it,c,T){
+  if(c.count){const n=T-(c.target)+1;return ((n-1)%100+1)/100;}
+  if(c.diff===0) return 1;
+  if(c.diff<0) return null;
+  const start=c.prev!=null?c.prev:Math.min(localDayNum(it.createdAt||Date.now()),T);
+  const span=c.target-start;
+  return span>0?Math.max(0,Math.min(1,(T-start)/span)):0;
+}
 function rowEl({it,c},showPin){
+  const r=progressOf(it,c,todayNum());
   return h('li',{class:(!c.upcoming&&!c.count)?'past':''},
     h('button',{class:'row',onclick:()=>openEdit(it)},
       h('div',{class:'info'},
         h('div',{class:'t',text:it.title}),
         h('div',{class:'m'},showPin&&it.id===prefs.pinned?svg(PIN_ICON):null,(c.count?'시작 ':'')+fmt(c.target),it.repeat&&!c.count?svg(REPEAT_ICON):null,hasAlarm(it.id)?svg(BELL_ICON):null,sharedTag(it))),
-      h('span',{class:'v num',text:c.label})));
+      h('span',{class:'v num',text:c.label}),
+      r!=null?h('div',{class:'row-bar','aria-hidden':'true'},h('i',{style:'width:'+(r*100).toFixed(1)+'%'})):null));
 }
 function render(){
   const T=todayNum(); lastDay=T;
