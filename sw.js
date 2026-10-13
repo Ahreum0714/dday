@@ -1,12 +1,15 @@
 // 앱 화면 파일만 저장해 두는 서비스 워커. 디데이 데이터(Supabase)는 저장하지 않아요.
 // 앱 파일을 고친 뒤 올릴 때는 아래 버전 숫자를 하나 올려 주세요.
-const VERSION = 'dday-v11';
+const VERSION = 'dday-v12';
 const SHELL = ['./', 'index.html', 'app.js', 'config.js', 'manifest.webmanifest',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js';
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL.concat([SUPABASE_JS]))).then(() => self.skipWaiting()));
+  // 브라우저에 남은 예전 파일이 아니라 서버의 최신 파일을 받아 저장
+  e.waitUntil(caches.open(VERSION)
+    .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })).concat([SUPABASE_JS])))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -23,9 +26,10 @@ self.addEventListener('fetch', e => {
   const cacheable = sameOrigin || req.url === SUPABASE_JS || url.href.startsWith('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@');
   if (!cacheable) return; // Supabase API 요청 등은 그대로 통과
 
-  // 최신 화면 우선, 오프라인이면 저장해 둔 화면
+  // 최신 화면 우선(브라우저 임시 저장분도 서버에 다시 확인), 오프라인이면 저장해 둔 화면
+  const fresh = sameOrigin ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req);
   e.respondWith(
-    fetch(req).then(res => {
+    fresh.then(res => {
       if (res && (res.ok || res.type === 'opaque')) {
         const copy = res.clone();
         caches.open(VERSION).then(c => c.put(req, copy));

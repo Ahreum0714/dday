@@ -852,6 +852,20 @@ if(!window.supabase||!cfg.SUPABASE_URL||/여기에/.test(cfg.SUPABASE_URL+cfg.SU
 }
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+      reg.update().catch(()=>{});
+      // 앱을 다시 볼 때마다 새 버전이 있는지 확인
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{});});
+    }).catch(()=>{});
+  });
+  // 새 버전이 설치되면 한 번 새로고침해서 바로 적용 (입력 중인 창이 열려 있으면 닫힐 때까지 기다림)
+  let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(reloaded) return;
+    const go=()=>{if(reloaded)return;reloaded=true;location.reload();};
+    if($('scrim').hidden) go();
+    else{const t=setInterval(()=>{if($('scrim').hidden){clearInterval(t);go();}},1000);}
+  });
 }
 })();
