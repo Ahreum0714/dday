@@ -425,7 +425,9 @@ function reminderSection(it,getFields){
   const time=timeField('r-time',initTime,'알림 시각');
   const chipsBox=h('div',{class:'chips',role:'group','aria-label':'알림 날짜 빠르게 고르기'});
   const guide=h('p',{class:'rem-guide','aria-live':'polite'});
-  const clear=h('button',{class:'rem-clear',type:'button',text:'알림 지우기',onclick:()=>{df.input.value='';df.input.dispatchEvent(new Event('change'));refresh();}});
+  const body=h('div',{class:'rem-body'});
+  const sw=h('input',{type:'checkbox',role:'switch',id:'r-on',class:'switch',checked:!!cur,'aria-label':'알림 설정'});
+  sw.addEventListener('change',()=>{refresh();drawStatus();});
 
   // 세는 방법에 따라 버튼이 바뀜
   function chipDefs(f){
@@ -445,14 +447,18 @@ function reminderSection(it,getFields){
       const past=c.day<T;
       const on=df.input.value===dayStr(c.day);
       return h('button',{class:'chip'+(on?' on':''),type:'button','aria-pressed':String(on),disabled:past,
-        onclick:()=>{df.input.value=dayStr(c.day);df.input.dispatchEvent(new Event('change'));refresh();}},c.name);
+        onclick:()=>{if(!sw.checked)return;df.input.value=dayStr(c.day);df.input.dispatchEvent(new Event('change'));refresh();}},c.name);
     }));
     chipsBox.hidden=!chips.length;
   }
   function refresh(){
     drawChips();
     const f=getFields();
-    clear.hidden=!df.input.value;
+    const on=sw.checked;
+    body.classList.toggle('off',!on);
+    df.input.disabled=!on;time.disabled=!on;
+    chipsBox.querySelectorAll('button').forEach(b=>{if(!on)b.disabled=true;});
+    if(!on){guide.textContent='알림이 꺼져 있어요';return;}
     if(!f.date){guide.textContent='디데이 날짜를 먼저 골라 주세요';return;}
     const ms=customMs(df.input.value,time.value);
     if(!ms){guide.textContent='알림 날짜를 고르거나 위 버튼을 눌러 주세요';return;}
@@ -466,6 +472,8 @@ function reminderSection(it,getFields){
 
   const status=h('div',{class:'push-status'});
   async function drawStatus(){
+    status.replaceChildren();
+    if(!sw.checked) return;
     const st=await pushState();
     status.replaceChildren();
     if(st==='on'){status.append(h('p',{class:'hint',text:'이 기기에서 알림이 켜져 있어요.'}));return;}
@@ -482,13 +490,14 @@ function reminderSection(it,getFields){
   }
   drawStatus();
 
+  body.append(h('div',{class:'rem-inputs'},df.wrap,time),chipsBox,guide);
   const el=h('div',{class:'field rem-section'},h('span',{text:'알림 (나에게만)'}),
-    h('div',{class:'rem-inputs'},df.wrap,time),
-    chipsBox,
-    h('div',{class:'rem-guide-row'},guide,clear),
+    h('label',{class:'rem-switch-row',for:'r-on'},h('span',{text:'알림 설정'}),sw),
+    body,
     status);
 
   function desired(){
+    if(!sw.checked) return [];
     const ms=customMs(df.input.value,time.value);
     if(!ms) return [];
     const f=getFields();
