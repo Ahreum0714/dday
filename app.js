@@ -15,7 +15,7 @@ const $=id=>document.getElementById(id);
 
 /* ---------- state ---------- */
 let sb=null,me=null,access=null;          // me = {id,email,name}
-let items=[],profiles={},members=[];
+let items=[],profiles={},members=[],myReminders=[];
 let loaded=false;
 let prefs={theme:'ink',sort:'near',pinned:null,groups:[],groupOf:{},view:'home'};
 let groupsOpen=true;
@@ -64,7 +64,7 @@ function savePrefs(){
   if(!sb||!me) return;
   clearTimeout(prefsTimer);
   prefsTimer=setTimeout(async()=>{
-    const p={theme:prefs.theme,sort:prefs.sort,pinned:prefs.pinned||null,groups:prefs.groups||[],groupOf:prefs.groupOf||{},view:prefs.view||'home'};
+    const p={theme:prefs.theme,sort:prefs.sort,pinned:prefs.pinned||null,groups:prefs.groups||[],groupOf:prefs.groupOf||{},view:prefs.view||'home',remindTime:prefs.remindTime||'09:00'};
     await sb.from('user_prefs').upsert({user_id:me.id,prefs:p,updated_at:new Date().toISOString()});
   },400);
 }
@@ -87,6 +87,8 @@ function h(tag,attrs,...kids){
 }
 function svg(markup){const t=document.createElement('template');t.innerHTML=markup;return t.content.firstChild;}
 const REPEAT_ICON='<svg aria-label="매년 반복" role="img" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>';
+const BELL_ICON='<svg aria-label="알림 있음" role="img" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+function hasAlarm(id){return myReminders.some(r=>r.dday_id===id&&r.next_at);}
 const PIN_ICON='<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/></svg>';
 const PEOPLE_ICON='<svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6.5 6.5 0 0 1 3.5 6"/></svg>';
 const ICON=(d,s)=>'<svg aria-hidden="true" width="'+(s||20)+'" height="'+(s||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
@@ -122,10 +124,11 @@ async function must(p){const r=await p;if(r.error)throw r.error;return r.data;}
 
 /* ---------- data ---------- */
 async function fetchAll(){
-  const [d,p,m]=await Promise.all([
+  const [d,p,m,rm]=await Promise.all([
     sb.from('ddays').select('id,owner,title,date,mode,repeat,created_at,updated_at,updated_by,dday_shares(user_id)'),
     sb.from('profiles').select('id,email,name'),
-    sb.from('members').select('email,is_admin,created_at').order('created_at')
+    sb.from('members').select('email,is_admin,created_at').order('created_at'),
+    sb.from('reminders').select('id,dday_id,kind,remind_time,custom_at,next_at')
   ]);
   if(d.error) throw d.error;
   items=(d.data||[]).map(r=>({
@@ -135,6 +138,7 @@ async function fetchAll(){
   }));
   profiles={};(p.data||[]).forEach(x=>profiles[x.id]=x);
   members=m.data||[];
+  myReminders=rm.error?[]:(rm.data||[]);
   loaded=true;
 }
 let refetchTimer=null;
@@ -170,7 +174,7 @@ function rowEl({it,c},showPin){
     h('button',{class:'row',onclick:()=>openEdit(it)},
       h('div',{class:'info'},
         h('div',{class:'t',text:it.title}),
-        h('div',{class:'m'},showPin&&it.id===prefs.pinned?svg(PIN_ICON):null,(c.count?'시작 ':'')+fmt(c.target),it.repeat&&!c.count?svg(REPEAT_ICON):null,sharedTag(it))),
+        h('div',{class:'m'},showPin&&it.id===prefs.pinned?svg(PIN_ICON):null,(c.count?'시작 ':'')+fmt(c.target),it.repeat&&!c.count?svg(REPEAT_ICON):null,hasAlarm(it.id)?svg(BELL_ICON):null,sharedTag(it))),
       h('span',{class:'v num',text:c.label})));
 }
 function render(){
@@ -319,19 +323,177 @@ function shareSection(it){
       h('p',{class:'hint',text:boxes.length?'아무도 고르지 않으면 나만 볼 수 있어요. 고른 사람은 날짜를 함께 고칠 수 있어요.':'아직 고를 수 있는 사람이 없어요. 초대한 사람이 한 번 로그인하면 여기에 나타나요.'}))};
 }
 
+/* ---------- 날짜·시각 입력칸 ---------- */
+// PC(마우스)에서는 칸 어디를 눌러도 달력/시계가 열리게. 폰은 원래 칸 전체가 선택창을 열어요.
+function pickerOnClick(input){
+  if(typeof input.showPicker==='function'&&window.matchMedia&&matchMedia('(pointer: fine)').matches){
+    input.addEventListener('mousedown',e=>{e.preventDefault();input.focus({preventScroll:true});try{input.showPicker();}catch(x){}});
+    input.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();try{input.showPicker();}catch(x){}}});
+  }
+}
+function dateField(id,value,label){
+  const input=h('input',{class:'input',type:'date',id,value:value||'','aria-label':label||null});
+  const wrap=h('div',{class:'date-wrap'},input,h('span',{class:'date-ph','aria-hidden':'true',text:'YYYY-MM-DD'}));
+  const sync=()=>wrap.classList.toggle('is-empty',!input.value);
+  ['input','change','blur'].forEach(ev=>input.addEventListener(ev,sync));sync();
+  pickerOnClick(input);
+  return {input,wrap};
+}
+function timeField(id,value,label){
+  const input=h('input',{class:'input',type:'time',id,value:value||'09:00',step:'60','aria-label':label||null});
+  pickerOnClick(input);
+  return input;
+}
+
+/* ---------- 알림 ---------- */
+const KINDS=[{id:'day0',name:'당일',off:0},{id:'day1',name:'하루 전',off:1},{id:'day7',name:'일주일 전',off:7}];
+const kstFmt=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'short',hour:'numeric',minute:'2-digit'});
+const kstYear=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric'});
+function fmtWhen(ms){
+  const s=kstFmt.format(new Date(ms));
+  const y=kstYear.format(new Date(ms)),ny=kstYear.format(new Date());
+  return (y!==ny?y+' ':'')+s;
+}
+function kstMs(dayN,hhmm){const [hh,mm]=String(hhmm||'09:00').split(':').map(Number);return dayN*DAY+((hh-9)*60+mm)*60000;}
+function kstDayOf(ms){const t=new Date(ms+9*3600000);return num(t.getUTCFullYear(),t.getUTCMonth()+1,t.getUTCDate());}
+// 서버(reminder_next_at)와 같은 규칙으로 다음 알림 시각을 계산
+function nextFire(f,off,hhmm,now){
+  const [y,m,d]=String(f.date||'').split('-').map(Number);
+  if(!y||!m||!d) return null;
+  const base=num(y,m,d);
+  if(f.mode==='dday'&&f.repeat){
+    const ty=new Date(now+9*3600000).getUTCFullYear()-1;
+    for(let i=0;i<4;i++){const t=occ(ty+i,m,d);if(t<base)continue;const c=kstMs(t-off,hhmm);if(c>now)return c;}
+    return null;
+  }
+  const c=kstMs(base-off,hhmm);return c>now?c:null;
+}
+function customMs(dateStr,hhmm){
+  const [y,m,d]=String(dateStr||'').split('-').map(Number);
+  if(!y||!m||!d) return null;
+  return kstMs(num(y,m,d),hhmm);
+}
+
+function pushSupported(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;}
+function isIOS(){return /iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function isStandalone(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;}
+function b64ToBytes(s){const p='='.repeat((4-s.length%4)%4);const b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0));}
+async function pushState(){
+  if(!pushSupported()) return isIOS()&&!isStandalone()?'need-install':'unsupported';
+  if(Notification.permission==='denied') return 'denied';
+  try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();return sub&&Notification.permission==='granted'?'on':'off';}
+  catch(e){return 'off';}
+}
+async function registerSub(sub){
+  const j=sub.toJSON();
+  await must(sb.rpc('register_push',{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth}));
+}
+async function enablePush(){
+  const key=(window.DDAY_CONFIG||{}).VAPID_PUBLIC_KEY;
+  if(!key) throw new Error('no key');
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted') return 'denied';
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(key)});
+  await registerSub(sub);
+  try{await reg.showNotification('알림이 켜졌어요',{body:'정한 시각에 이 기기로 디데이 알림이 와요.',icon:'icons/icon-192.png',tag:'dday-enabled'});}catch(e){}
+  return 'on';
+}
+async function refreshPushRegistration(){
+  if(!pushSupported()||Notification.permission!=='granted') return;
+  try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub) await registerSub(sub);}catch(e){}
+}
+
+function reminderSection(it,getFields){
+  const mine=it?myReminders.filter(r=>r.dday_id===it.id):[];
+  const presetTime=(mine.find(r=>r.kind!=='custom')||{}).remind_time||prefs.remindTime||'09:00';
+  const time=timeField('r-time',String(presetTime).slice(0,5),'알림 시각');
+  const kinds=KINDS.map(k=>{
+    const box=h('input',{type:'checkbox',id:'r-'+k.id,checked:mine.some(r=>r.kind===k.id)});
+    const sub=h('small',{class:'sub'});
+    return {k,box,sub,el:h('label',{class:'toggle rem',for:'r-'+k.id},h('span',{class:'rem-text'},h('span',{text:k.name}),sub),box)};
+  });
+  const customs=[];
+  const customList=h('div',{class:'customs'});
+  let cid=0;
+  function addCustom(at){
+    const i=cid++;
+    let dStr='',tStr='09:00';
+    if(at){const t=new Date(new Date(at).getTime()+9*3600000);dStr=t.getUTCFullYear()+'-'+pad(t.getUTCMonth()+1)+'-'+pad(t.getUTCDate());tStr=pad(t.getUTCHours())+':'+pad(t.getUTCMinutes());}
+    const df=dateField('r-c-d-'+i,dStr,'알림 날짜');
+    const tf=timeField('r-c-t-'+i,tStr,'알림 시각');
+    const sub=h('small',{class:'sub'});
+    const row={df,tf,sub};
+    const rm=h('button',{class:'icon-btn rm-custom',type:'button','aria-label':'이 알림 빼기',onclick:()=>{customs.splice(customs.indexOf(row),1);row.el.remove();}},svg(ICON('<path d="M6 6l12 12M18 6L6 18"/>',18)));
+    row.el=h('div',{class:'custom'},h('div',{class:'custom-inputs'},df.wrap,tf,rm),sub);
+    [df.input,tf].forEach(x=>{x.addEventListener('change',refresh);x.addEventListener('input',refresh);});
+    customs.push(row);customList.append(row.el);refresh();
+  }
+  mine.filter(r=>r.kind==='custom').forEach(r=>addCustom(r.custom_at));
+
+  const status=h('div',{class:'push-status'});
+  async function drawStatus(){
+    const st=await pushState();
+    status.replaceChildren();
+    if(st==='on'){status.append(h('p',{class:'hint',text:'이 기기에서 알림이 켜져 있어요.'}));return;}
+    if(st==='need-install'){status.append(h('p',{class:'hint',text:'아이폰은 Safari에서 홈 화면에 추가한 앱으로 열어야 알림을 켤 수 있어요.'}));return;}
+    if(st==='unsupported'){status.append(h('p',{class:'hint',text:'이 브라우저는 알림을 지원하지 않아요.'}));return;}
+    if(st==='denied'){status.append(h('p',{class:'hint',text:'이 기기에서 알림이 꺼져 있어요. 기기 설정에서 이 앱의 알림을 허용해 주세요.'}));return;}
+    const btn=h('button',{class:'btn ghost push-on',type:'button',text:'이 기기에서 알림 켜기',onclick:async()=>{
+      btn.disabled=true;
+      try{const r=await enablePush();if(r==='denied')toast('알림이 허용되지 않았어요.');}
+      catch(e){toast('알림을 켜지 못했어요. 잠시 후 다시 시도해 주세요.');}
+      drawStatus();
+    }});
+    status.append(btn,h('p',{class:'hint',text:'알림을 받으려면 기기마다 한 번 켜 주세요.'}));
+  }
+  drawStatus();
+
+  function refresh(){
+    const f=getFields(),now=Date.now();
+    for(const x of kinds){
+      if(!f.date){x.sub.textContent='날짜를 고르면 알림 날짜가 보여요';continue;}
+      const ms=nextFire(f,x.k.off,time.value,now);
+      x.sub.textContent=ms?fmtWhen(ms)+'에 울려요':'지난 날짜라 울리지 않아요';
+    }
+    for(const c of customs){
+      const ms=customMs(c.df.input.value,c.tf.value);
+      if(!ms){c.sub.textContent='날짜와 시각을 골라 주세요';continue;}
+      if(ms<=now){c.sub.textContent='지난 시각이라 울리지 않아요';continue;}
+      if(!f.date){c.sub.textContent='';continue;}
+      const r=compute({date:f.date,mode:f.mode,repeat:f.repeat},kstDayOf(ms));
+      c.sub.textContent=r?'그날 기준 '+r.label:'';
+    }
+  }
+  time.addEventListener('change',refresh);time.addEventListener('input',refresh);
+  kinds.forEach(x=>x.box.addEventListener('change',refresh));
+
+  const el=h('div',{class:'field rem-section'},h('span',{text:'알림 (나에게만)'}),
+    h('label',{class:'rem-time',for:'r-time'},h('span',{text:'알림 시각'}),time),
+    h('div',{},kinds.map(x=>x.el)),
+    h('div',{class:'custom-head'},h('span',{text:'직접 입력'}),h('button',{class:'add-custom',type:'button',onclick:()=>addCustom(null)},svg(ICON('<path d="M12 5v14M5 12h14"/>',16)),'추가')),
+    customList,status);
+
+  function desired(){
+    const out=[];
+    for(const x of kinds) if(x.box.checked) out.push({kind:x.k.id,remind_time:time.value||'09:00'});
+    for(const c of customs){const ms=customMs(c.df.input.value,c.tf.value);if(ms) out.push({kind:'custom',custom_at:new Date(ms).toISOString()});}
+    return out;
+  }
+  return {el,refresh,desired,time:()=>time.value};
+}
+async function saveReminders(ddayId,list){
+  const before=myReminders.filter(r=>r.dday_id===ddayId);
+  if(before.length) await must(sb.from('reminders').delete().eq('dday_id',ddayId).eq('user_id',me.id));
+  if(list.length) await must(sb.from('reminders').insert(list.map(r=>Object.assign({dday_id:ddayId,user_id:me.id},r))));
+}
+
 function openEdit(it){
   const isNew=!it;
   const v=it||{title:'',date:'',mode:'dday',repeat:false};
   const title=h('input',{class:'input',type:'text',id:'f-title',maxlength:'30',placeholder:'예: 제주 여행',value:v.title,autocomplete:'off'});
-  const date=h('input',{class:'input',type:'date',id:'f-date',value:v.date});
-  const dateWrap=h('div',{class:'date-wrap'},date,h('span',{class:'date-ph','aria-hidden':'true',text:'YYYY-MM-DD'}));
-  const syncDate=()=>dateWrap.classList.toggle('is-empty',!date.value);
-  date.addEventListener('input',syncDate);date.addEventListener('change',syncDate);date.addEventListener('blur',syncDate);syncDate();
-  // PC(마우스)에서는 칸 어디를 눌러도 달력이 열리게. 폰은 원래 칸 전체가 달력을 열어요.
-  if(typeof date.showPicker==='function'&&window.matchMedia&&matchMedia('(pointer: fine)').matches){
-    date.addEventListener('mousedown',e=>{e.preventDefault();date.focus({preventScroll:true});try{date.showPicker();}catch(x){}});
-    date.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();try{date.showPicker();}catch(x){}}});
-  }
+  const {input:date,wrap:dateWrap}=dateField('f-date',v.date);
   const modeD=h('input',{type:'radio',name:'mode',id:'f-mode-d',value:'dday',checked:v.mode!=='count'});
   const modeC=h('input',{type:'radio',name:'mode',id:'f-mode-c',value:'count',checked:v.mode==='count'});
   const repeat=h('input',{type:'checkbox',id:'f-repeat',checked:!!v.repeat});
@@ -345,6 +507,10 @@ function openEdit(it){
   const sync=()=>{repeatRow.hidden=modeC.checked;};
   modeD.addEventListener('change',sync);modeC.addEventListener('change',sync);sync();
   const share=shareSection(it);
+  const rem=reminderSection(it,()=>({date:date.value,mode:modeC.checked?'count':'dday',repeat:!modeC.checked&&repeat.checked}));
+  [date,modeD,modeC,repeat].forEach(x=>x.addEventListener('change',rem.refresh));
+  date.addEventListener('input',rem.refresh);
+  rem.refresh();
   const err=h('p',{class:'notice',hidden:true});
   const saveBtn=h('button',{class:'btn primary',type:'submit',text:isNew?'추가':'저장'});
   const owner=!it||it.owner===me.id;
@@ -393,6 +559,8 @@ function openEdit(it){
           if(rm.length) await must(sb.from('dday_shares').delete().eq('dday_id',id).in('user_id',rm));
         }
       }
+      await saveReminders(id,rem.desired());
+      prefs.remindTime=rem.time()||prefs.remindTime;
       if(pin.checked) prefs.pinned=id; else if(prefs.pinned===id) prefs.pinned=null;
       prefs.groupOf=prefs.groupOf||{};
       if(group.value) prefs.groupOf[id]=group.value; else delete prefs.groupOf[id];
@@ -409,6 +577,7 @@ function openEdit(it){
         h('label',{for:'f-mode-c'},modeC,'+1일부터',h('small',{text:'시작일이 1일째'})))),
     h('label',{class:'field',for:'f-group'},h('span',{text:'그룹 (나에게만)'}),group),
     h('div',{},repeatRow,h('label',{class:'toggle',for:'f-pin'},h('span',{text:'홈에 고정 (나에게만)'}),pin)),
+    rem.el,
     share.el,
     err,by,
     h('div',{class:'actions'},delBtn,h('button',{class:'btn ghost',type:'button',text:'취소',onclick:closeSheet}),saveBtn));
@@ -515,6 +684,7 @@ async function startSession(user){
   access=a.error?null:a.data;
   if(!access){showGate('denied');started=false;return;}
   showApp();render();
+  refreshPushRegistration();
   sb.from('profiles').upsert({id:me.id,email:me.email,name:me.name,updated_at:new Date().toISOString()}).then(()=>{});
   const pr=await sb.from('user_prefs').select('prefs').eq('user_id',me.id).maybeSingle();
   if(pr.data&&pr.data.prefs){
