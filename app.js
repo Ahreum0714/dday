@@ -298,7 +298,7 @@ function renderDrawer(){
     (prefs.groups||[]).map(g=>nav('g:'+g.id,ICON('<circle cx="12" cy="12" r="2.2" fill="currentColor"/>',16),g.name,countIn(g.id))),
     (prefs.groups||[]).length?null:h('p',{class:'nav-muted',text:'아직 그룹이 없어요.',style:'margin:8px 12px'}),
     (()=>{const n=items.filter(it=>!groupOfItem(it.id)).length;
-      return (n||view==='none')?h('button',{class:'nav-item nav-ungrouped','aria-current':view==='none'?'page':null,onclick:()=>setView('none')},svg(ICON('<circle cx="12" cy="12" r="4"/>',16)),h('span',{class:'label',text:'그룹 미지정'}),h('span',{class:'cnt',text:String(n)})):null;})(),
+      return (n||view==='none')?h('button',{class:'nav-item nav-ungrouped','aria-current':view==='none'?'page':null,onclick:()=>setView('none')},svg(ICON('<circle cx="12" cy="12" r="2.4" stroke-width="1.4"/>',16)),h('span',{class:'label',text:'그룹 미지정'}),h('span',{class:'cnt',text:String(n)})):null;})(),
     addForm,
     (prefs.groups||[]).length?h('button',{class:'nav-item nav-manage',onclick:()=>{closeDrawer();openGroupManager();}},svg(GEAR_ICON),h('span',{class:'label',text:'그룹 관리'})):null);
 
