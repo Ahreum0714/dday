@@ -547,7 +547,8 @@ function reminderSection(it,getFields){
     body.classList.toggle('off',!on);
     df.input.disabled=!on;time.disabled=!on;
     chipsBox.querySelectorAll('button').forEach(b=>{if(!on)b.disabled=true;});
-    if(!on){guide.textContent='알림이 꺼져 있어요';return;}
+    guide.hidden=!on;
+    if(!on){guide.textContent='';return;}
     if(!f.date){guide.textContent='디데이 날짜를 먼저 골라 주세요';return;}
     const ms=customMs(df.input.value,time.value);
     if(!ms){guide.textContent='알림 날짜를 고르거나 위 버튼을 눌러 주세요';return;}
@@ -565,7 +566,7 @@ function reminderSection(it,getFields){
     if(!sw.checked) return;
     const st=await pushState();
     status.replaceChildren();
-    if(st==='on'){status.append(h('p',{class:'hint',text:'이 기기에서 알림이 켜져 있어요.'}));return;}
+    if(st==='on') return;
     if(st==='need-install'){status.append(h('p',{class:'hint',text:'아이폰은 Safari에서 홈 화면에 추가한 앱으로 열어야 알림을 켤 수 있어요.'}));return;}
     if(st==='unsupported'){status.append(h('p',{class:'hint',text:'이 브라우저는 알림을 지원하지 않아요.'}));return;}
     if(st==='denied'){status.append(h('p',{class:'hint',text:'이 기기에서 알림이 꺼져 있어요. 기기 설정에서 이 앱의 알림을 허용해 주세요.'}));return;}
